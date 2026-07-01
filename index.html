@@ -2839,25 +2839,20 @@ async function signInWithGoogle() {
 _supabase.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN' && session) {
     const user = session.user;
-    const email = user.email || '';
-    // If signing up via Google, check for existing profile
+    // Check if this user already has an org
     const { data: profile } = await _supabase
       .from('profiles').select('*').eq('id', user.id).single();
+
     if (profile && profile.org_id) {
-      // Existing user — load their org and go to dashboard
+      // Returning user — load org and go straight to dashboard
       await loadUserOrg(user);
       goToApp();
     } else {
-      // New user via Google — show org setup screen
-      closeAuth();
+      // New user (Google OAuth or email) — show org setup modal
       window._signupName = user.user_metadata?.full_name || '';
-      var appLayer = document.getElementById('app-layer');
-      var authLayer = document.getElementById('auth-layer');
-      if (appLayer) appLayer.style.display = 'flex';
-      if (authLayer) authLayer.style.display = 'flex';
-      // Re-open auth modal on org setup screen
-      var modal = document.getElementById('auth-modal');
-      if (modal) modal.style.display = 'flex';
+      // Open auth modal over the landing page
+      openAuth('signup');
+      // Navigate inside the modal to org setup screen
       document.getElementById('auth-tabs').style.display = 'none';
       ['login','signup','signup-email','role','onboard'].forEach(function(s){
         var el = document.getElementById('screen-' + s);
@@ -2867,8 +2862,7 @@ _supabase.auth.onAuthStateChange(async (event, session) => {
       if (orgSetup) orgSetup.classList.add('active');
     }
   } else if (event === 'SIGNED_OUT') {
-    var appLayer = document.getElementById('app-layer');
-    if (appLayer) appLayer.style.display = 'none';
+    // Nothing — logOut() handles UI reset
   }
 })
 
