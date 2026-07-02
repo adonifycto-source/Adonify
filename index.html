@@ -2839,14 +2839,21 @@ async function doModalLogin() {
   if (btn) { btn.disabled = false; btn.textContent = 'Log In →'; }
   if (error) { showToast('Invalid email or password', 'red'); return; }
 
-  const { data: profile } = await _supabase
-    .from('profiles').select('org_id').eq('id', data.user.id).single();
+  // Profile check with 8s timeout — Supabase free tier can be slow on cold start
+  var _mlTimeout = new Promise(function(res){ setTimeout(function(){ res({data: null}); }, 8000); });
+  var _mlProfileRes = await Promise.race([
+    _supabase.from('profiles').select('org_id').eq('id', data.user.id).single(),
+    _mlTimeout
+  ]);
+  var profile = _mlProfileRes.data;
 
   if (profile && profile.org_id) {
     closeAuth();
     await loadUserOrg(data.user);
     goToApp();
   } else {
+    // No profile yet (new user) or query timed out — show wizard
+    // doOrgSetup() will detect existing org on submit and skip creation
     window._signupName = data.user.user_metadata?.full_name || data.user.email || '';
     _authHandled = true;
     document.getElementById('auth-tabs').style.display = 'none';
@@ -2856,6 +2863,8 @@ async function doModalLogin() {
     });
     var orgSetup = document.getElementById('screen-org-setup');
     if (orgSetup) orgSetup.classList.add('active');
+    wizardGoTo(1);
+    wizardSetGreeting(window._signupName);
   }
 }
 
@@ -3001,7 +3010,20 @@ _supabase.auth.onAuthStateChange(async (event, session) => {
   var user = session.user;
   window._signupName = user.user_metadata?.full_name || '';
 
-  // Show wizard welcome step for Google OAuth users
+  // Check profile FIRST — returning Google users go straight to dashboard, never see wizard
+  var _oaProfileTimeout = new Promise(function(res){ setTimeout(function(){ res({data: null}); }, 8000); });
+  var _oaProfileRes = await Promise.race([
+    _supabase.from('profiles').select('org_id').eq('id', user.id).single(),
+    _oaProfileTimeout
+  ]);
+  if (_oaProfileRes.data && _oaProfileRes.data.org_id) {
+    closeAuth();
+    await loadUserOrg(user);
+    goToApp();
+    return;
+  }
+
+  // New user (no org yet) — show wizard
   openAuth('signup');
   document.getElementById('auth-tabs').style.display = 'none';
   ['login','signup','signup-email','role','onboard'].forEach(function(s){
@@ -3012,17 +3034,6 @@ _supabase.auth.onAuthStateChange(async (event, session) => {
   if (orgSetup) orgSetup.classList.add('active');
   wizardGoTo(1);
   wizardSetGreeting(window._signupName);
-
-  // Check profile in background — returning Google user skips org setup
-  var profileRes = await _supabase
-    .from('profiles').select('org_id').eq('id', user.id).single();
-  var profile = profileRes.data;
-  if (profile && profile.org_id) {
-    closeAuth();
-    await loadUserOrg(user);
-    goToApp();
-  }
-  // else: new user — org setup modal stays open
 })
 
 /* ── Sign up ── */
@@ -3093,19 +3104,49 @@ async function doOrgSetup() {
 
   if (user) {
     try {
-      const { data: org } = await _supabase.from('organizations')
-        .insert({ name: orgName, school: school || '', season_label: seasonVal, min_points: ptsMin })
-        .select().single();
-      await _supabase.from('profiles').upsert({
-        id: user.id,
-        full_name: window._signupName || user.user_metadata?.full_name || '',
-        org_id: org.id,
-        role: 'officer'
-      });
-      D.orgName = org.name;
-      D.season  = org.season_label || seasonVal;
-      D.orgId   = org.id;
+      var _t = function(ms){ return new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); }, ms); }); };
+
+      // Check if user already has an org (returning user, or profile query timed out at login)
+      var _existingRes = await Promise.race([
+        _supabase.from('profiles').select('org_id').eq('id', user.id).single(),
+        _t(8000)
+      ]);
+      if (_existingRes.data && _existingRes.data.org_id) {
+        // Returning user — load their org, skip creation entirely
+        if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
+        closeAuth();
+        await loadUserOrg(user);
+        goToApp();
+        return;
+      }
+
+      // New user — create the org (10s timeout so button never stays frozen)
+      var _insertRes = await Promise.race([
+        _supabase.from('organizations')
+          .insert({ name: orgName, school: school || '', season_label: seasonVal, min_points: ptsMin })
+          .select().single(),
+        _t(10000)
+      ]);
+      var org = _insertRes.data;
+      if (org && org.id) {
+        await Promise.race([
+          _supabase.from('profiles').upsert({
+            id: user.id,
+            full_name: window._signupName || user.user_metadata?.full_name || '',
+            org_id: org.id,
+            role: 'officer'
+          }),
+          _t(8000)
+        ]);
+        D.orgName = org.name;
+        D.season  = org.season_label || seasonVal;
+        D.orgId   = org.id;
+      } else {
+        D.orgName = orgName;
+        D.season  = seasonVal;
+      }
     } catch(e) {
+      if (e.message === 'timeout') { showToast('Saved locally — reconnect to sync', 'var(--amber)'); }
       D.orgName = orgName;
       D.season  = seasonVal;
     }
