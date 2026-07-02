@@ -3005,11 +3005,26 @@ _supabase.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_OUT') { _authHandled = false; return; }
   if (_authHandled || !session) return;
 
-  // Only run for Google OAuth callbacks (flag set in signInWithGoogle before redirect).
-  // Normal page visits and email logins don't set this flag, so they're unaffected.
   var isOAuthCallback = sessionStorage.getItem('_adonify_oauth_pending') === '1';
   sessionStorage.removeItem('_adonify_oauth_pending');
-  if (!isOAuthCallback) return;
+
+  // For page loads with an existing session (INITIAL_SESSION), restore the app automatically.
+  // Email login and org-setup flows set _authHandled themselves, so they won't reach here twice.
+  if (!isOAuthCallback) {
+    if (event !== 'INITIAL_SESSION') return; // SIGNED_IN from email login is handled by doModalLogin
+    _authHandled = true;
+    var _rsUser = session.user;
+    var _rsTimeout = new Promise(function(res){ setTimeout(function(){ res({data:null}); }, 8000); });
+    var _rsProfile = await Promise.race([
+      _supabase.from('profiles').select('org_id').eq('id', _rsUser.id).single(),
+      _rsTimeout
+    ]);
+    if (_rsProfile.data && _rsProfile.data.org_id) {
+      await loadUserOrg(_rsUser);
+      goToApp();
+    }
+    return;
+  }
 
   _authHandled = true;
   var user = session.user;
@@ -3178,10 +3193,12 @@ async function doOrgSetup() {
   }
 
   D.members      = [];
+  D.points       = [];
   D.tasks        = [];
   D.events       = [];
   D.applications = [];
   D.activity     = [];
+  D.committees   = [];
   D.minPts       = ptsMin;
 
   if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
@@ -7351,18 +7368,12 @@ document.addEventListener('click', function(e) {
 });
 
 function renderAll(){
-  renderDashboard();
-  renderChat();
-  renderFinances();
-  renderOpportunities();
-  renderGoals();
-  renderLeaderboard();
-  renderTasks();
-  renderEvents();
-  renderApplications();
-  renderMembers();
-  renderAtRisk();
-  refreshReport();
+  var _fns = [renderDashboard, renderChat, renderFinances, renderOpportunities,
+              renderGoals, renderLeaderboard, renderTasks, renderEvents,
+              renderApplications, renderMembers, renderAtRisk, refreshReport];
+  _fns.forEach(function(fn){
+    try { fn(); } catch(e) { console.warn('[renderAll] ' + fn.name + ' failed:', e.message); }
+  });
 }
 
 // renderAll() deferred to launchApp()
@@ -7820,12 +7831,14 @@ function goToApp(mode){
   try{org=document.getElementById('signup-org').value.trim();nm=document.getElementById('signup-name').value.trim();}catch(e){}
   if(org){var b=document.getElementById('bo-org');if(b)b.value=org;}
   if(nm){var c=document.getElementById('bo-name');if(c)c.value=nm;}
-  launchApp(mode);
+  if (typeof renderAll === 'function') renderAll();
 }
 
 /* ── LOG OUT (restore landing) ── */
 function logOut(){
   demoMode=false;
+  _authHandled = false;
+  if (typeof _supabase !== 'undefined') { _supabase.auth.signOut().catch(function(){}); }
   var demoBanner=document.getElementById('demo-banner');
   if(demoBanner)demoBanner.style.display='none';
   _appLaunched=false;
