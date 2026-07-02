@@ -2719,6 +2719,11 @@ label.toggle input:checked~.toggle-thumb{transform:translateX(18px);background:v
 
 
 <script>
+/* ── Early D stub — block 3 defines DEFAULT and populates D;
+   this ensures D exists if onAuthStateChange fires before block 3 runs ── */
+var D = { orgName:'', season:'', orgId:null, minPts:500,
+          members:[], tasks:[], events:[], applications:[], activity:[] };
+
 /* ── Auth modal ── */
 function openAuth(tab) {
   var _am = document.getElementById('auth-modal');
@@ -4926,7 +4931,7 @@ const DEFAULT={
   ]
 };
 
-let D=JSON.parse(JSON.stringify(DEFAULT));
+D=JSON.parse(JSON.stringify(DEFAULT)); // populated from DEFAULT (declared early in block 2)
 let currentView='dashboard';
 let evTab='upcoming';
 let evDetailId=null;
