@@ -1128,6 +1128,27 @@ footer{
 }
 .auth-back:hover{color:var(--ice)}
 
+/* ── Signup Wizard ── */
+.wizard-steps{display:flex;gap:6px;justify-content:center;margin-bottom:28px}
+.wizard-dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:all .22s}
+.wizard-dot.active{background:var(--amber);width:18px;border-radius:3px}
+.wizard-step{display:none}
+.wizard-step.active{display:block}
+.wizard-notice{background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.18);border-radius:8px;padding:11px 14px;font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+.wizard-greeting{text-align:center;margin-bottom:24px}
+.wizard-greeting .wg-name{font-size:19px;font-weight:700;color:var(--ice);margin-bottom:4px}
+.wizard-greeting .wg-sub{font-size:13px;color:var(--muted)}
+.wizard-confirm-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:18px}
+.wizard-confirm-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-dim)}
+.wizard-confirm-row:last-child{border-bottom:none}
+.wizard-confirm-label{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.wizard-confirm-val{font-size:13px;color:var(--ice);font-weight:500}
+.wizard-input-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.wizard-back-link{text-align:center;margin-top:10px}
+.wizard-back-link button{background:none;border:none;cursor:pointer;font-size:12px;color:var(--muted);font-family:inherit;transition:color .15s}
+.wizard-back-link button:hover{color:var(--ice)}
+.sidebar-bottom-nav{padding:8px 0 4px;border-top:1px solid var(--border-dim);margin-top:6px}
+
 /* ═══════════════════════ APP (scoped) ═════════════════════ */
 /* Note: :root, *, body already defined by landing CSS above */
 :root{--border-dim:#152236;--amber-d:rgba(245,166,35,.12)}/* Add missing app-only tokens */
@@ -2569,25 +2590,74 @@ label.toggle input:checked~.toggle-thumb{transform:translateX(18px);background:v
     </div>
 
 
-    <!-- Org setup screen (after signup) -->
+    <!-- Org setup wizard (3 steps) -->
     <div class="auth-screen" id="screen-org-setup">
-      <button class="auth-back" onclick="showAuthScreens();switchTab('login')">&#8592; Back</button>
-      <div style="text-align:center;margin-bottom:20px">
-        <div style="font-size:32px;margin-bottom:8px">&#127963;</div>
-        <div style="font-size:17px;font-weight:600;color:var(--ice);margin-bottom:4px">Set up your organization</div>
-        <div style="font-size:13px;color:var(--muted)">You can change these anytime in Settings</div>
+
+      <!-- Progress dots -->
+      <div class="wizard-steps">
+        <div class="wizard-dot active" id="wdot-1"></div>
+        <div class="wizard-dot" id="wdot-2"></div>
+        <div class="wizard-dot" id="wdot-3"></div>
       </div>
-      <label class="auth-label">Organization name</label>
-      <input class="auth-input" type="text" id="setup-org-name" placeholder="e.g. Alpha Epsilon Pi &#8212; Gamma Chapter"/>
-      <label class="auth-label">School</label>
-      <input class="auth-input" type="text" id="setup-school" placeholder="e.g. Penn State University"/>
-      <label class="auth-label">Semester</label>
-      <select class="auth-input" id="setup-season" style="cursor:pointer"></select>
-      <button class="auth-submit" onclick="doOrgSetup()" style="margin-top:16px">Create My Organization &#8594;</button>
-      <p style="font-size:12px;color:var(--muted2);text-align:center;margin-top:14px">
-        Joining someone else\'s org?
-        <button class="auth-switch-link" onclick="goToJoinOrgModal()">Enter an invite code</button>
-      </p>
+
+      <!-- Step 1: Welcome -->
+      <div class="wizard-step active" id="wizard-step-1">
+        <div class="wizard-greeting">
+          <div style="font-size:36px;margin-bottom:12px">&#127775;</div>
+          <div class="wg-name" id="wizard-welcome-name">You&rsquo;re in.</div>
+          <div class="wg-sub" id="wizard-welcome-sub">Let&rsquo;s set up your organization &mdash; takes 30 seconds.</div>
+        </div>
+        <div class="wizard-notice">
+          You&rsquo;re creating a <strong style="color:var(--ice)">new organization</strong>. If your chapter already uses Adonify, ask your president for an invite link instead.
+        </div>
+        <button class="auth-submit" onclick="wizardGoTo(2)">Set up my organization &#8594;</button>
+        <p style="font-size:12px;color:var(--muted2);text-align:center;margin-top:14px">
+          Already have an invite?
+          <button class="auth-switch-link" onclick="goToJoinOrgModal()">Enter invite code</button>
+        </p>
+      </div>
+
+      <!-- Step 2: Org form -->
+      <div class="wizard-step" id="wizard-step-2">
+        <div class="wizard-greeting">
+          <div class="wg-name" style="font-size:17px">Tell us about your chapter</div>
+          <div class="wg-sub">You can edit these anytime in Settings</div>
+        </div>
+        <label class="auth-label">Organization name</label>
+        <input class="auth-input" type="text" id="setup-org-name" placeholder="e.g. Alpha Epsilon Pi &#8212; Gamma Chapter"/>
+        <label class="auth-label">School</label>
+        <input class="auth-input" type="text" id="setup-school" placeholder="e.g. Penn State University"/>
+        <div class="wizard-input-row">
+          <div>
+            <label class="auth-label">Semester</label>
+            <select class="auth-input" id="setup-season" style="cursor:pointer;margin-bottom:0"></select>
+          </div>
+          <div>
+            <label class="auth-label">Point minimum</label>
+            <input class="auth-input" type="number" id="setup-pts-min" placeholder="500" min="0" style="margin-bottom:0"/>
+          </div>
+        </div>
+        <button class="auth-submit" onclick="wizardGoTo(3)" style="margin-top:18px">Continue &#8594;</button>
+        <div class="wizard-back-link"><button onclick="wizardGoTo(1)">&#8592; Back</button></div>
+      </div>
+
+      <!-- Step 3: Confirm -->
+      <div class="wizard-step" id="wizard-step-3">
+        <div class="wizard-greeting">
+          <div style="font-size:36px;margin-bottom:12px">&#127963;</div>
+          <div class="wg-name" style="font-size:17px">Looks good?</div>
+          <div class="wg-sub">Review before we create your organization</div>
+        </div>
+        <div class="wizard-confirm-box">
+          <div class="wizard-confirm-row"><span class="wizard-confirm-label">Organization</span><span class="wizard-confirm-val" id="confirm-org-name">&#8212;</span></div>
+          <div class="wizard-confirm-row"><span class="wizard-confirm-label">School</span><span class="wizard-confirm-val" id="confirm-school">&#8212;</span></div>
+          <div class="wizard-confirm-row"><span class="wizard-confirm-label">Semester</span><span class="wizard-confirm-val" id="confirm-season">&#8212;</span></div>
+          <div class="wizard-confirm-row"><span class="wizard-confirm-label">Point minimum</span><span class="wizard-confirm-val" id="confirm-pts">500 pts / member</span></div>
+        </div>
+        <button class="auth-submit" onclick="doOrgSetup()">Create my organization &#8594;</button>
+        <div class="wizard-back-link"><button onclick="wizardGoTo(2)">&#8592; Go back and edit</button></div>
+      </div>
+
     </div>
 
     <!-- Join org screen (modal version) -->
@@ -2712,13 +2782,14 @@ async function doEmailSignup() {
 
   // Store name for org setup
   window._signupName = name;
-  // Go to org setup screen
+  // Go to org setup wizard — skip to step 2 (email users don't need the welcome screen)
   document.getElementById('auth-tabs').style.display = 'none';
   ['login','signup','signup-email'].forEach(function(s){
     var el = document.getElementById('screen-'+s);
     if (el) el.classList.remove('active');
   });
   document.getElementById('screen-org-setup').classList.add('active');
+  wizardGoTo(2);
 }
 
 /* ── Role selection (Step 2 — after OAuth signup) ── */
@@ -2930,7 +3001,7 @@ _supabase.auth.onAuthStateChange(async (event, session) => {
   var user = session.user;
   window._signupName = user.user_metadata?.full_name || '';
 
-  // Show org setup immediately (no DB wait)
+  // Show wizard welcome step for Google OAuth users
   openAuth('signup');
   document.getElementById('auth-tabs').style.display = 'none';
   ['login','signup','signup-email','role','onboard'].forEach(function(s){
@@ -2939,6 +3010,8 @@ _supabase.auth.onAuthStateChange(async (event, session) => {
   });
   var orgSetup = document.getElementById('screen-org-setup');
   if (orgSetup) orgSetup.classList.add('active');
+  wizardGoTo(1);
+  wizardSetGreeting(window._signupName);
 
   // Check profile in background — returning Google user skips org setup
   var profileRes = await _supabase
@@ -3008,7 +3081,8 @@ async function doOrgSetup() {
   var school  = document.getElementById('setup-school').value.trim();
   if (!orgName) { document.getElementById('setup-org-name').focus(); showToast('Please enter your organization name','red'); return; }
 
-  var btn = document.querySelector('#screen-org-setup .auth-submit');
+  var ptsMin = parseInt(document.getElementById('setup-pts-min') ? document.getElementById('setup-pts-min').value : '') || 500;
+  var btn = document.getElementById('wizard-step-3') ? document.querySelector('#wizard-step-3 .auth-submit') : document.querySelector('#screen-org-setup .auth-submit');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
 
   // Try Supabase first
@@ -3020,7 +3094,7 @@ async function doOrgSetup() {
   if (user) {
     try {
       const { data: org } = await _supabase.from('organizations')
-        .insert({ name: orgName, school: school || '', season_label: seasonVal, min_points: 500 })
+        .insert({ name: orgName, school: school || '', season_label: seasonVal, min_points: ptsMin })
         .select().single();
       await _supabase.from('profiles').upsert({
         id: user.id,
@@ -3045,9 +3119,9 @@ async function doOrgSetup() {
   D.events       = [];
   D.applications = [];
   D.activity     = [];
-  D.minPts       = 500;
+  D.minPts       = ptsMin;
 
-  if (btn) { btn.disabled = false; btn.textContent = 'Create My Organization →'; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
   closeAuth();
   document.querySelectorAll('nav,section,footer').forEach(function(el){ el.style.display = 'none'; });
   document.body.style.overflow = 'hidden';
@@ -3068,6 +3142,42 @@ async function doOrgSetup() {
 function goToJoinOrgModal() {
   document.getElementById('screen-org-setup').classList.remove('active');
   document.getElementById('screen-join-org').classList.add('active');
+}
+
+/* ── Wizard navigation ── */
+function wizardGoTo(step) {
+  // Validate step 2 before advancing to step 3
+  if (step === 3) {
+    var orgName = (document.getElementById('setup-org-name') || {}).value || '';
+    if (!orgName.trim()) {
+      document.getElementById('setup-org-name').focus();
+      showToast('Please enter your organization name', 'red');
+      return;
+    }
+    // Populate confirm screen
+    var seasonEl = document.getElementById('setup-season');
+    var seasonVal = seasonEl ? seasonEl.options[seasonEl.selectedIndex].text : '';
+    var pts = (document.getElementById('setup-pts-min') || {}).value || '500';
+    document.getElementById('confirm-org-name').textContent = orgName.trim();
+    document.getElementById('confirm-school').textContent = (document.getElementById('setup-school').value.trim()) || '—';
+    document.getElementById('confirm-season').textContent = seasonVal || '—';
+    document.getElementById('confirm-pts').textContent = (parseInt(pts) || 500) + ' pts / member';
+  }
+  [1,2,3].forEach(function(s) {
+    var el = document.getElementById('wizard-step-' + s);
+    var dot = document.getElementById('wdot-' + s);
+    if (el) el.classList.toggle('active', s === step);
+    if (dot) dot.classList.toggle('active', s === step);
+  });
+}
+
+/* ── Set wizard greeting after Google OAuth ── */
+function wizardSetGreeting(name) {
+  var nameEl = document.getElementById('wizard-welcome-name');
+  var subEl  = document.getElementById('wizard-welcome-sub');
+  var first = name ? name.split(' ')[0] : '';
+  if (nameEl) nameEl.textContent = first ? 'Hey ' + first + ', welcome to Adonify!' : 'Welcome to Adonify!';
+  if (subEl)  subEl.textContent  = 'Set up your organization - takes about 30 seconds.';
 }
 
 /* goToApp defined below in app script */
@@ -3290,17 +3400,18 @@ async function createOrg(orgName, school) {
     <span class="nav-icon">⭐</span>Applications
     <span class="nav-badge" id="apps-badge">2</span>
   </div>
-  <div class="nav-item nav-item-soon" id="nav-goals" onclick="switchView('goals')"><span class="nav-icon">🎯</span>Goals</div>
-  <div class="nav-item nav-item-soon" id="nav-opportunities" onclick="switchView('opportunities')"><span class="nav-icon">🙋</span>Opportunities</div>
-  <div class="nav-item nav-item-soon" id="nav-chat" onclick="switchView('chat')"><span class="nav-icon">💬</span>Chat</div>
+  <div class="nav-item" id="nav-goals" onclick="switchView('goals')"><span class="nav-icon">🎯</span>Goals</div>
 
   <div class="sidebar-divider"></div>
-  <div class="sidebar-section sidebar-admin-section">Admin</div>
+  <div class="sidebar-section sidebar-admin-section">Insights</div>
   <div class="nav-item" id="nav-members" onclick="switchView('members')"><span class="nav-icon">👥</span>Members</div>
-  <div class="nav-item nav-item-soon" id="nav-atrisk" onclick="switchView('atrisk')"><span class="nav-icon">⚠️</span>At-Risk</div>
-  <div class="nav-item nav-item-soon" id="nav-finances" onclick="switchView('finances')"><span class="nav-icon">💵</span>Finances</div>
-  <div class="nav-item nav-item-soon" id="nav-reports" onclick="switchView('reports')"><span class="nav-icon">📄</span>Reports</div>
-  <div class="nav-item" id="nav-settings" onclick="switchView('settings')"><span class="nav-icon">⚙️</span>Settings</div>
+  <div class="nav-item" id="nav-atrisk" onclick="switchView('atrisk')"><span class="nav-icon">⚠️</span>At-Risk</div>
+  <div class="nav-item" id="nav-finances" onclick="switchView('finances')"><span class="nav-icon">💵</span>Finances</div>
+  <div class="nav-item" id="nav-reports" onclick="switchView('reports')"><span class="nav-icon">📄</span>Reports</div>
+
+  <div class="sidebar-bottom-nav">
+    <div class="nav-item" id="nav-settings" onclick="switchView('settings')"><span class="nav-icon">⚙️</span>Settings</div>
+  </div>
 
   <div class="sidebar-user">
     <div class="av user-av" id="sidebar-user-av" style="background:#4A90D9">JT</div>
@@ -4768,16 +4879,6 @@ let memberDetailIdx=null;
 
 /* ─── Core ───────────────────────────────────── */
 function switchView(id){
-  // Coming Soon tabs
-  var _csMap={
-    chat:['💬','General Chat','Team messaging and channels are coming in v1.0. Stay tuned!'],
-    goals:['🎯','Goals','Set semester-wide goals and track progress against them. Launching soon!'],
-    opportunities:['🙋','Opportunities','Let members claim point opportunities and volunteer for roles. Coming in v1.0!'],
-    finances:['💵','Finances','Budget tracking, dues management, and committee budgets. Coming in v1.0!'],
-    reports:['📄','Reports','Season summaries, analytics, and exportable reports. Coming in v1.0!'],
-    atrisk:['⚠️','At-Risk Members','Dedicated at-risk tracking and intervention tools. Launching soon!']
-  };
-  if(_csMap[id]){showComingSoon(_csMap[id][0],_csMap[id][1],_csMap[id][2]);return;}
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   var el=document.getElementById('view-'+id);
   if(el)el.classList.add('active');
@@ -7861,94 +7962,4 @@ function wizardFinish(){
 }
 
 /* ── ADD / REMOVE MEMBER ── */
-function openAddMember(){document.getElementById('am-name').value='';document.getElementById('am-role').value='';document.getElementById('am-color').value='#4A90D9';document.getElementById('am-prev-av').style.background='#4A90D9';document.getElementById('am-prev-av').textContent='??';document.getElementById('am-prev-name').textContent='Member Name';document.getElementById('am-prev-role').textContent='Role';document.querySelectorAll('.am-swatch').forEach(function(s){s.classList.remove('sel');});var f=document.querySelector('.am-swatch');if(f)f.classList.add('sel');document.getElementById('am-name').addEventListener('input',_amP);document.getElementById('am-role').addEventListener('input',_amP);document.getElementById('m-add-member').classList.add('open');}
-function _amP(){var n=document.getElementById('am-name').value.trim();var r=document.getElementById('am-role').value.trim();var col=document.getElementById('am-color').value;document.getElementById('am-prev-av').style.background=col;document.getElementById('am-prev-av').textContent=n?ini(n):'??';document.getElementById('am-prev-name').textContent=n||'Member Name';document.getElementById('am-prev-role').textContent=r||'Role';}
-function selColor(el){document.querySelectorAll('.am-swatch').forEach(function(s){s.classList.remove('sel');});el.classList.add('sel');document.getElementById('am-color').value=el.getAttribute('data-c');_amP();}
-function closeAddMember(){document.getElementById('m-add-member').classList.remove('open');}
-function addMember(){var name=document.getElementById('am-name').value.trim();var role=document.getElementById('am-role').value.trim()||'Member';var color=document.getElementById('am-color').value||'#4A90D9';if(!name){showToast('Please enter a name','var(--red)');return;}D.members.push({name:name,initials:ini(name),role:role,color:color,isAdmin:false});D.points.push(0);addNotif('Member added: '+name);saveData();renderAll();closeAddMember();showToast(name+' added!','var(--green)');}
-function removeMember(idx){if(idx===null||idx===undefined)return;var m=D.members[idx];if(!m)return;if(m.isAdmin){showToast('Cannot remove an admin.','var(--red)');return;}if(!confirm('Remove '+m.name+'? This cannot be undone.'))return;D.members.splice(idx,1);D.points.splice(idx,1);D.activity=D.activity.filter(function(a){return a.memberIdx!==idx;}).map(function(a){return Object.assign({},a,{memberIdx:a.memberIdx>idx?a.memberIdx-1:a.memberIdx});});D.committees.forEach(function(c){c.members=c.members.filter(function(i){return i!==idx;}).map(function(i){return i>idx?i-1:i;});});saveData();renderAll();closeMemberDetail();showToast(m.name+' removed.','var(--amber)');}
-function resetAndLogout(){if(!confirm('This will erase all data and return to the start. Are you sure?'))return;clearSavedData();location.reload();}
-
-/* ── RESIZE ── */
-(function(){var _lm=window.innerWidth<=768;window.addEventListener('resize',function(){var nm=window.innerWidth<=768;if(nm!==_lm){_lm=nm;if(_appLaunched)renderAll();}});})();
-
-/* ── LAUNCH ── */
-var _appLaunched=false;
-function launchApp(mode){
-  demoMode=(mode==='demo');
-  var demoBanner=document.getElementById('demo-banner');
-  if(demoBanner)demoBanner.style.display=demoMode?'flex':'none';
-  if(hasSavedData()&&mode!=='demo'){
-    loadSavedData();
-    var layer=document.getElementById('auth-layer');
-    if(layer){layer.classList.add('fade-out');setTimeout(function(){layer.style.display='none';},380);}
-    if(!_appLaunched){renderAll();_appLaunched=true;}
-    addNotif('Welcome back to '+D.orgName+'!');
-    return;
-  }
-  if(!_appLaunched){renderAll();_appLaunched=true;}
-  if(mode==='demo'){
-    var layer=document.getElementById('auth-layer');
-    if(layer){layer.classList.add('fade-out');setTimeout(function(){layer.style.display='none';},380);}
-    addNotif('Demo mode — explore a sample chapter. Changes won’t be saved.');
-  }else if(mode==='join'){
-    goAuth('join-org');
-  }else if(mode){
-    // Unknown mode — show org select (legacy fallback)
-    goAuth('org-select');
-  }
-  // mode===undefined means the caller is the Supabase auth path;
-  // auth-layer is already hidden by goToApp(), nothing to show here.
-}
-
-/* ── AUTO-RESTORE (only when PERSISTENCE_ENABLED) ── */
-(function(){
-  if(!PERSISTENCE_ENABLED)return;
-  try{
-    if(localStorage.getItem('climbr_data')){
-      window.addEventListener('DOMContentLoaded',function(){
-        document.querySelectorAll('nav,section,footer').forEach(function(el){el.style.display='none';});
-        var app=document.getElementById('app-layer');
-        if(app){app.style.display='flex';}
-        document.body.classList.remove('landing-active');
-        launchApp('restore');
-      });
-    }
-  }catch(e){}
-})();
-
-/* ── NAV SCROLL EFFECT ── */
-(function(){
-  var _nav=document.querySelector('nav');
-  if(!_nav)return;
-  function _onScroll(){_nav.classList.toggle('scrolled',window.scrollY>50);}
-  window.addEventListener('scroll',_onScroll,{passive:true});
-  _onScroll();
-})();
-
-/* ── SCROLL REVEAL ── */
-(function(){
-  if(!window.IntersectionObserver)return;
-  var _io=new IntersectionObserver(function(entries){
-    entries.forEach(function(e){
-      if(e.isIntersecting){
-        e.target.classList.add('sr-visible');
-        _io.unobserve(e.target);
-      }
-    });
-  },{threshold:0.1,rootMargin:'0px 0px -36px 0px'});
-  document.querySelectorAll('.sr').forEach(function(el){
-    // only observe landing-page elements (not inside the app)
-    if(!el.closest('#app-layer'))_io.observe(el);
-  });
-})();
-
-</script>
-
-<!-- Setup Wizard (Start from Scratch) -->
-<div id="setup-wizard" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(4,10,18,.92);align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto">
-
-    <!-- Header -->
-    <div style="padding:28px 28px 0;text-align:center">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-
+function openAddMember(){document.getElementById('am-name').value='';document.getElementById('am-role').value='';document.getElementById('am-color').value='#4A90D9';document.getElementById('am-prev-av').style.background='#4A90D9';document.getElementById('am-prev-av').textContent='??';document.getElementById('am-prev-name').textContent='Member Name';document.getElementById('am-prev-role').textContent='Role';document.querySelectorAll('.am-swatch').forEach(function(s){s.classList.remove('sel');});var f=document.querySelector('.am-swatch');if(f)f.classList.add('sel');document.getElementById('am-name').addEventListener('input',_amP);document.getElementById('am-role').addEventListener('input',_amP);document.getElementById('m-add-m
