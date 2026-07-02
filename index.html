@@ -3127,9 +3127,15 @@ async function doOrgSetup() {
           .select().single(),
         _t(10000)
       ]);
+      if (_insertRes.error) {
+        // Surface the real DB error so we know exactly what's wrong
+        showToast('DB error: ' + _insertRes.error.message, 'red');
+        if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
+        return;
+      }
       var org = _insertRes.data;
       if (org && org.id) {
-        await Promise.race([
+        var _profileRes = await Promise.race([
           _supabase.from('profiles').upsert({
             id: user.id,
             full_name: window._signupName || user.user_metadata?.full_name || '',
@@ -3138,6 +3144,11 @@ async function doOrgSetup() {
           }),
           _t(8000)
         ]);
+        if (_profileRes.error) {
+          showToast('Profile error: ' + _profileRes.error.message, 'red');
+          if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
+          return;
+        }
         D.orgName = org.name;
         D.season  = org.season_label || seasonVal;
         D.orgId   = org.id;
@@ -3146,9 +3157,14 @@ async function doOrgSetup() {
         D.season  = seasonVal;
       }
     } catch(e) {
-      if (e.message === 'timeout') { showToast('Saved locally — reconnect to sync', 'var(--amber)'); }
-      D.orgName = orgName;
-      D.season  = seasonVal;
+      if (e.message === 'timeout') {
+        showToast('Connection timed out — check your internet and try again', 'red');
+        if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
+        return;
+      }
+      showToast('Unexpected error: ' + (e.message || e), 'red');
+      if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
+      return;
     }
   } else {
     D.orgName = orgName;
