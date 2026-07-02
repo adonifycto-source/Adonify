@@ -8038,4 +8038,58 @@ function wizardFinish(){
 }
 
 /* ── ADD / REMOVE MEMBER ── */
-function openAddMember(){document.getElementById('am-name').value='';document.getElementById('am-role').value='';document.getElementById('am-color').value='#4A90D9';document.getElementById('am-prev-av').style.background='#4A90D9';document.getElementById('am-prev-av').textContent='??';document.getElementById('am-prev-name').textContent='Member Name';document.getElementById('am-prev-role').textContent='Role';document.querySelectorAll('.am-swatch').forEach(function(s){s.classList.remove('sel');});var f=document.querySelector('.am-swatch');if(f)f.classList.add('sel');document.getElementById('am-name').addEventListener('input',_amP);document.getElementById('am-role').addEventListener('input',_amP);document.getElementById('m-add-m
+function _amP(){
+  var n=document.getElementById('am-name').value.trim();
+  var r=document.getElementById('am-role').value.trim();
+  var c=document.getElementById('am-color').value;
+  document.getElementById('am-prev-name').textContent=n||'Member Name';
+  document.getElementById('am-prev-role').textContent=r||'Role';
+  if(c){document.getElementById('am-prev-av').style.background=c;}
+  var ini2=n?n.split(' ').map(function(w){return w[0]||'';}).join('').substring(0,2).toUpperCase():'??';
+  document.getElementById('am-prev-av').textContent=ini2;
+}
+function selColor(el){
+  document.querySelectorAll('.am-swatch').forEach(function(s){s.classList.remove('sel');});
+  el.classList.add('sel');
+  var c=el.getAttribute('data-c');
+  document.getElementById('am-color').value=c;
+  document.getElementById('am-prev-av').style.background=c;
+  _amP();
+}
+function openAddMember(){
+  document.getElementById('am-name').value='';
+  document.getElementById('am-role').value='';
+  document.getElementById('am-color').value='#4A90D9';
+  document.getElementById('am-prev-av').style.background='#4A90D9';
+  document.getElementById('am-prev-av').textContent='??';
+  document.getElementById('am-prev-name').textContent='Member Name';
+  document.getElementById('am-prev-role').textContent='Role';
+  document.querySelectorAll('.am-swatch').forEach(function(s){s.classList.remove('sel');});
+  var f=document.querySelector('.am-swatch');
+  if(f)f.classList.add('sel');
+  document.getElementById('am-name').removeEventListener('input',_amP);
+  document.getElementById('am-role').removeEventListener('input',_amP);
+  document.getElementById('am-name').addEventListener('input',_amP);
+  document.getElementById('am-role').addEventListener('input',_amP);
+  document.getElementById('m-add-member').style.display='flex';
+}
+function closeAddMember(){
+  document.getElementById('m-add-member').style.display='none';
+}
+function addMember(){
+  var name=document.getElementById('am-name').value.trim();
+  var role=document.getElementById('am-role').value.trim()||'Member';
+  var color=document.getElementById('am-color').value||'#4A90D9';
+  if(!name){showToast('Please enter a name','red');return;}
+  var initials=name.split(' ').map(function(w){return w[0]||'';}).join('').substring(0,2).toUpperCase();
+  D.members.push({name:name,initials:initials,role:role,color:color,isAdmin:false,streak:0});
+  D.points.push(0);
+  closeAddMember();
+  renderAll();
+  saveData();
+  showToast(name+' added!','var(--green)');
+  addNotif('\u{1F464} '+name+' joined as '+role+'.');
+}
+</script>
+</body>
+</html>
