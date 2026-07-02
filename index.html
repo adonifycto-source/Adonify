@@ -2931,12 +2931,21 @@ async function loadUserOrg(user) {
     .eq('org_id', profile.org_id)
     .order('points', { ascending: false })
 
-  D.orgName = org.name
-  D.season  = org.season_label
-  D.members = members || []
+  if (!org) { showOnboard(); return; } // org deleted — show landing
+  D.orgName      = org.name;
+  D.season       = org.season_label || '';
+  D.minPts       = org.min_points || 500;
+  D.orgId        = org.id;
+  // Reset all user-specific arrays so DEFAULT demo data never bleeds in
+  D.members      = members || [];
+  D.points       = (members || []).map(function(m){ return m.points || 0; });
+  D.tasks        = [];
+  D.events       = [];
+  D.applications = [];
+  D.activity     = [];
   var fullName = profile.full_name || user.user_metadata?.full_name || user.email || '';
   updateSidebarUser(fullName);
-  renderAll()
+  renderAll();
 }
 
 
@@ -8088,7 +8097,7 @@ function addMember(){
   renderAll();
   saveData();
   showToast(name+' added!','var(--green)');
-  addNotif('\u{1F464} '+name+' joined as '+role+'.');
+  addNotif('👤 '+name+' joined as '+role+'.');
 }
 </script>
 </body>
