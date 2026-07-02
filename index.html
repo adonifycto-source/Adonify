@@ -3102,69 +3102,70 @@ async function doOrgSetup() {
 
   var seasonVal = (document.getElementById('setup-season') ? document.getElementById('setup-season').value : '') || _defaultSeason();
 
+  // Safe toast — showToast lives in a later script block; guard against timing issues
+  var _safeToast = function(msg, color) {
+    if (typeof showToast === 'function') { showToast(msg, color); return; }
+    var t = document.getElementById('toast');
+    if (t) { t.textContent = msg; t.className = 'toast-show'; setTimeout(function(){ t.className = ''; }, 4000); }
+  };
+
   if (user) {
+    // Timeouts RESOLVE (never reject) so a cold Supabase never crashes the catch block
+    var _tRes = function(ms){ return new Promise(function(res){ setTimeout(function(){ res({data:null,error:null}); }, ms); }); };
+
+    // 1. Check if returning user already has an org — timeout just means "not found, proceed"
+    var _existingRes = await Promise.race([
+      _supabase.from('profiles').select('org_id').eq('id', user.id).single(),
+      _tRes(8000)
+    ]);
+    if (_existingRes.data && _existingRes.data.org_id) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
+      closeAuth();
+      await loadUserOrg(user);
+      goToApp();
+      return;
+    }
+
+    // 2. Create the org (15s window — generous for cold Supabase starts)
+    var _insertRes;
     try {
-      var _t = function(ms){ return new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); }, ms); }); };
-
-      // Check if user already has an org (returning user, or profile query timed out at login)
-      var _existingRes = await Promise.race([
-        _supabase.from('profiles').select('org_id').eq('id', user.id).single(),
-        _t(8000)
-      ]);
-      if (_existingRes.data && _existingRes.data.org_id) {
-        // Returning user — load their org, skip creation entirely
-        if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
-        closeAuth();
-        await loadUserOrg(user);
-        goToApp();
-        return;
-      }
-
-      // New user — create the org (10s timeout so button never stays frozen)
-      var _insertRes = await Promise.race([
+      _insertRes = await Promise.race([
         _supabase.from('organizations')
           .insert({ name: orgName, school: school || '', season_label: seasonVal, min_points: ptsMin })
           .select().single(),
-        _t(10000)
+        _tRes(15000)
       ]);
-      if (_insertRes.error) {
-        // Surface the real DB error so we know exactly what's wrong
-        showToast('DB error: ' + _insertRes.error.message, 'red');
-        if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
-        return;
-      }
-      var org = _insertRes.data;
-      if (org && org.id) {
-        var _profileRes = await Promise.race([
+    } catch(e) {
+      _insertRes = { data: null, error: { message: e.message || String(e) } };
+    }
+
+    if (_insertRes.error && _insertRes.error.message) {
+      _safeToast('Could not create org: ' + _insertRes.error.message, 'red');
+      if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
+      return;
+    }
+
+    var org = _insertRes.data;
+    if (org && org.id) {
+      // 3. Save org_id to profile — fire and forget if slow, org creation already succeeded
+      try {
+        await Promise.race([
           _supabase.from('profiles').upsert({
             id: user.id,
             full_name: window._signupName || user.user_metadata?.full_name || '',
             org_id: org.id,
             role: 'officer'
           }),
-          _t(8000)
+          _tRes(8000)
         ]);
-        if (_profileRes.error) {
-          showToast('Profile error: ' + _profileRes.error.message, 'red');
-          if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
-          return;
-        }
-        D.orgName = org.name;
-        D.season  = org.season_label || seasonVal;
-        D.orgId   = org.id;
-      } else {
-        D.orgName = orgName;
-        D.season  = seasonVal;
-      }
-    } catch(e) {
-      if (e.message === 'timeout') {
-        showToast('Connection timed out — check your internet and try again', 'red');
-        if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
-        return;
-      }
-      showToast('Unexpected error: ' + (e.message || e), 'red');
-      if (btn) { btn.disabled = false; btn.textContent = 'Create my organization →'; }
-      return;
+      } catch(e) { /* profile save failed — not fatal for this session */ }
+      D.orgName = org.name;
+      D.season  = org.season_label || seasonVal;
+      D.orgId   = org.id;
+    } else {
+      // Supabase timed out or returned nothing — work in local mode
+      D.orgName = orgName;
+      D.season  = seasonVal;
     }
   } else {
     D.orgName = orgName;
